@@ -1,0 +1,109 @@
+package org.firstinspires.ftc.teamcode.testing;
+
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
+import com.arcrobotics.ftclib.command.CommandOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.AnalogInput;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+
+@Config
+@TeleOp(name = "DiffySwervePodTuner", group = "testing")
+public class DiffySwervePodPIDTesting extends CommandOpMode {
+    private DcMotorEx motor1, motor2;
+    private AnalogInput absoluteEncoder;
+    private FtcDashboard dash;
+
+    public static double TARGET_ANGLE_DEGREES = 0.0; 
+    public static double encoderOffset = 0.0;
+
+    public static double kP = 0.0; 
+    public static double kI = 0.0; 
+    public static double kD = 0.0; 
+    public static double kS = 0.0;
+
+    private double lastError = 0.0;
+    private double integralSum = 0.0;
+    private double lastTime = 0.0;
+
+    @Override
+    public void initialize() {
+        dash = FtcDashboard.getInstance();
+
+        // 1. Map your single pod's hardware
+        motor1 = hardwareMap.get(DcMotorEx.class, "motor1");
+        motor2 = hardwareMap.get(DcMotorEx.class, "motor2");
+        absoluteEncoder = hardwareMap.get(AnalogInput.class, "podEncoder");
+
+        // 2. Enforce BRAKE mode and RAW power control
+        motor1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        motor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        motor1.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        motor2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        lastTime = getRuntime();
+        telemetry.addLine("Pod Tuner Init Done");
+        telemetry.update();
+    }
+
+    @Override
+    public void run() {
+        super.run();
+
+        double currentVoltage = absoluteEncoder.getVoltage();
+        double currentAngleRadians = (currentVoltage / 3.3) * 2.0 * Math.PI;
+        double currentAngleDegrees = Math.toDegrees(currentAngleRadians) - encoderOffset;
+
+
+        double targetRadians = Math.toRadians(TARGET_ANGLE_DEGREES);
+
+
+        double errorRadians = targetRadians - currentAngleRadians;
+        while (errorRadians > Math.PI) errorRadians -= 2 * Math.PI;
+        while (errorRadians < -Math.PI) errorRadians += 2 * Math.PI;
+
+        //oh pleaseee oh glorious gemini i aint trying to manually write pid loop so plz be right i trust you so much :)
+        double currentTime = getRuntime();
+        double deltaTime = currentTime - lastTime;
+        if (deltaTime <= 0) deltaTime = 0.001; // Avoid divide by zero
+
+        // Integral
+        integralSum += errorRadians * deltaTime;
+        // Anti-windup: limit integral power so it doesn't spiral out of control
+        integralSum = Math.max(-0.5, Math.min(0.5, integralSum)); 
+
+        // Derivative
+        double derivative = (errorRadians - lastError) / deltaTime;
+
+        // Combine into standard PID output
+        double pidOutput = (kP * errorRadians) + (kI * integralSum) + (kD * derivative);
+
+        // Calculate Static Friction Feedforward (kS) based on direction of error
+        double staticFeedforward = 0.0;
+        if (Math.abs(errorRadians) > Math.toRadians(1.0)) { // 1 degree deadband
+            staticFeedforward = Math.signum(errorRadians) * kS;
+        }
+
+        // Total steering power includes feedback and friction feedforward
+        double steeringPower = pidOutput + staticFeedforward;
+
+        // Clip the steering power to safe limits
+        steeringPower = Math.max(-1.0, Math.min(1.0, steeringPower));
+
+        // Save states for next loop
+        lastError = errorRadians;
+        lastTime = currentTime;
+
+        motor1.setPower(steeringPower);
+        motor2.setPower(-steeringPower);
+
+        TelemetryPacket packet = new TelemetryPacket();
+        packet.put("target_angle_deg", TARGET_ANGLE_DEGREES);
+        packet.put("current_angle_deg", currentAngleDegrees);
+        packet.put("error_deg", Math.toDegrees(errorRadians));
+        packet.put("steering_power_output", steeringPower);
+        dash.sendTelemetryPacket(packet);
+    }
+}
