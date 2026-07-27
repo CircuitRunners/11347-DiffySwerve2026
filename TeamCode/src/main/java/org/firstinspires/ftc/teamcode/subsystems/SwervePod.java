@@ -11,10 +11,10 @@ public class SwervePod {
     private final DcMotorEx motor2;
     private final AnalogInput absoluteEncoder;
     private final double encoderOffset;
-    public static double kP = 0.004;
-    public static double kI = 0.0;
-    public static double kD = 0.0001;
-    public static double kS = 0.08;
+    private double kP = 0.0; //0.007
+    private double kI = 0.0; //0.0
+    private double kD = 0.0; //0.00005
+    private double kS = 0.0; //0.005
 
     private double integralSum = 0.0;
     private double lastError = 0.0;
@@ -40,8 +40,13 @@ public class SwervePod {
         double voltage = absoluteEncoder.getVoltage();
         return (voltage / 3.2) * 2.0 * Math.PI;
     }
-
-    public void setTargetAngle(double targetAngle, double drivePower, double runTime) {
+    public void setPID(double p, double i, double d, double s) {
+        this.kP = p;
+        this.kI = i;
+        this.kD = d;
+        this.kS = s;
+    }
+    public void update (double targetAngle, double drivePower, double currentTime) {
         double currentVoltage = motor2.getCurrentPosition();
         double currentAngle = (currentVoltage / TICKS) * 120 - (encoderOffset);
 
@@ -52,7 +57,6 @@ public class SwervePod {
 //        pidf.setPIDF(kP, kI, kD, kS);
 //        double steeringPower = pidf.calculate(-error, 0);
 
-        double currentTime = runTime;
         double dt = currentTime - lastTime;
         if (dt <= 0) dt = 0.01;
 
