@@ -44,7 +44,7 @@ public class motorPID extends OpMode{
         telemetryM.addLine("Initialized");
         telemetryM.update(telemetry);
     }
-
+//max speed 2000
     @Override
     public void loop() {
         m1.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(m1P, m1I, m1D, m1F));
