@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 @Configurable
@@ -15,16 +16,17 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 public class motorPID extends OpMode{
     private DcMotorEx m1;
     private DcMotorEx m2;
-    public static double m1P = 0.0;
+    public static double m1P = 4.3;
     public static double m1I = 0.0;
     public static double m1D = 0.0;
-    public static double m1F = 0.0;
-    public static double m2P = 0.0;
+    public static double m1F = 6.0;
+    public static double m2P = 15.0;
     public static double m2I = 0.0;
-    public static double m2D = 0.0;
-    public static double m2F = 0.0;
+    public static double m2D = 1.0;
+    public static double m2F = 13.0;
     public static double targetV1 = 0.0;
     public static double targetV2 = 0.0;
+    public static int negative = -1;
     @IgnoreConfigurable
     static TelemetryManager telemetryM;
 
@@ -40,6 +42,8 @@ public class motorPID extends OpMode{
         m1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         m2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
+        //m1.setDirection(DcMotorSimple.Direction.REVERSE);
+
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
         telemetryM.addLine("Initialized");
         telemetryM.update(telemetry);
@@ -50,7 +54,7 @@ public class motorPID extends OpMode{
         m1.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(m1P, m1I, m1D, m1F));
         m2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(m2P, m2I, m2D, m2F));
 
-        m1.setVelocity(targetV1);
+        m1.setVelocity(negative * targetV1);
         m2.setVelocity(targetV2);
 
         double currentVel1 = m1.getVelocity();

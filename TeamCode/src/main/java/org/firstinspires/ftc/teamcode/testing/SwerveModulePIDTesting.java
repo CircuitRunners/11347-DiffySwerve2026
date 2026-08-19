@@ -11,7 +11,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.Range;
 //import com.seattlesolvers.solverslib.controller.PIDFController;
 import com.bylazar.telemetry.PanelsTelemetry;
@@ -23,7 +23,8 @@ public class SwerveModulePIDTesting extends OpMode {
     AnalogInput absoluteEncoder;
     public static double targetAngle = 0.0;
     public static double encoderOffset = 0.0;
-    public static double drivePower = 0.0;
+    public static double driveVelocity = 0.0;
+    public static double maxMotorVelocity = 1800;
     private double driveDirectionSign = 1.0;
     public static double TICKS = 4096;
     public static double ratio = -1.0;
@@ -31,6 +32,14 @@ public class SwerveModulePIDTesting extends OpMode {
     public static double kI = 0.0; 
     public static double kD = 0.00018; //0.0001
     public static double kS = 0.08;
+    private double m1P = 4.3;
+    private double m1I = 0.0;
+    private double m1D = 0.0;
+    private double m1F = 6.0;
+    private double m2P = 15.0;
+    private double m2I = 0.0;
+    private double m2D = 1.0;
+    private double m2F = 13.0;
 
     // Added tracking variables for manual I and D loops
     private double integralSum = 0.0;
@@ -39,21 +48,19 @@ public class SwerveModulePIDTesting extends OpMode {
     @IgnoreConfigurable
     static TelemetryManager telemetryM;
 
+    //right now, both positive = turn, so to move forward one must be positive and other must be negative :)
+
     @Override
     public void init() {
-
-        // 1. Map your single pod's hardware
         motor1 = hardwareMap.get(DcMotorEx.class, "motor1");
         motor2 = hardwareMap.get(DcMotorEx.class, "motor2");
-        //absoluteEncoder = hardwareMap.get(DigitalChannel.class, "podEncoder");
 
-        // 2. Enforce BRAKE mode and RAW power control
         motor1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         motor2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         //motor2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        motor1.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        motor2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        motor1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        motor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         absoluteEncoder = hardwareMap.get(AnalogInput.class, "podEncoder");
 
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
@@ -64,7 +71,8 @@ public class SwerveModulePIDTesting extends OpMode {
 
     @Override
     public void loop() {
-        //pidf.setSetPoint(targetAngle);
+        motor1.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(m1P, m1I, m1D, m1F));
+        motor2.setPIDFCoefficients(DcMotor.RunMode.RUN_USING_ENCODER, new PIDFCoefficients(m2P, m2I, m2D, m2F));
 
         double currentVoltage = absoluteEncoder.getVoltage();;
         double currentAngle = (currentVoltage / 3.2) * 360 - (encoderOffset);
@@ -97,7 +105,7 @@ public class SwerveModulePIDTesting extends OpMode {
 
         // 6. Directional Static Friction Feedforward (kS)
         double feedforward = 0.0;
-        if (Math.abs(error) > 0.5) { // 0.5-degree deadband tolerance
+        if (Math.abs(error) > 2) { //2 deg of tolerance
             feedforward = Math.signum(error) * kS;
         }
 
@@ -106,23 +114,24 @@ public class SwerveModulePIDTesting extends OpMode {
         lastTime = currentTime;
 
         // 7. Compute total output power (PID + F)
-        double steeringPower = (error * kP) + (integralSum * kI) + (derivative * kD) + feedforward;
-        steeringPower = Range.clip(steeringPower, -1.0, 1.0);
-        steeringPower = Range.clip(steeringPower, -1.0, 1.0);
+        double steeringVelocity = (error * kP) + (integralSum * kI) + (derivative * kD) + feedforward;
+        steeringVelocity = Range.clip(steeringVelocity, -maxMotorVelocity, maxMotorVelocity);
 
-        double optimizedDrivePower = (drivePower * driveDirectionSign) * Math.cos(Math.toRadians(error));
+        double optimizedDriveVelocity = (driveVelocity * driveDirectionSign * maxMotorVelocity) * Math.cos(Math.toRadians(error));
 
-        double m1Power = ratio * steeringPower + optimizedDrivePower;
-        double m2Power = ratio * steeringPower - optimizedDrivePower;
+        double targetVel1 = ratio * steeringVelocity + optimizedDriveVelocity;
+        double targetVel2 = ratio * steeringVelocity - optimizedDriveVelocity;
 
-        double max = Math.max(Math.abs(m1Power), Math.max(Math.abs(m2Power), 1.0));
-        motor1.setPower(m1Power / max);
-        motor2.setPower(m2Power / max);
+        double max = Math.max(Math.abs(targetVel1), Math.max(Math.abs(targetVel2), maxMotorVelocity));
+        motor1.setVelocity((targetVel1 / max) * maxMotorVelocity);
+        motor2.setVelocity((targetVel2 / max) * maxMotorVelocity);
+
+
 
         telemetryM.addData("target_angle_deg", targetAngle);
         telemetryM.addData("current_angle_deg", (int)currentAngle);
         telemetryM.addData("error_deg", error);
-        telemetryM.addData("steering_power_output", steeringPower);
+        telemetryM.addData("steering_power_output", steeringVelocity);
         telemetryM.update(telemetry);
 
     }
