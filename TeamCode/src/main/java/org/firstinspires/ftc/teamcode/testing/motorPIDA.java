@@ -8,12 +8,11 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 @Configurable
-@TeleOp(name = "PID testing for motors", group = "testing")
-public class motorPID extends OpMode{
+@TeleOp(name = "PID testing for motors A", group = "testing")
+public class motorPIDA extends OpMode{
     private DcMotorEx m1;
     private DcMotorEx m2;
     public static double m1P = 4.3;
