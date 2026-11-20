@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.teleOp;
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 
+import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.configurables.annotations.IgnoreConfigurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
@@ -11,6 +12,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.subsystems.DiffySwerveSubsystem;
 
+@Configurable
 @TeleOp(name = "Diffy TeleOp")
 public class SwerveTeleOp extends OpMode{
     private DiffySwerveSubsystem swerve;
@@ -28,10 +30,10 @@ public class SwerveTeleOp extends OpMode{
 
     @Override
     public void loop() {
-        double y = -gamepad1.left_stick_y;
-        double x = gamepad1.left_stick_x;
+        double y = -(double) Math.round(gamepad1.left_stick_y * 100) / 100;
+        double x = (double) Math.round(gamepad1.left_stick_x * 100) / 100;
 
-        double rotation = gamepad1.right_stick_x;
+        double rotation = -gamepad1.right_stick_x;
 
         swerve.drive(x, y, rotation);
 
@@ -41,6 +43,9 @@ public class SwerveTeleOp extends OpMode{
         telemetryM.addData("Target B:", swerve.getRightAngle());
         telemetryM.addData("Error A:", swerve.getLeftError());
         telemetryM.addData("Error B:", swerve.getRightError());
+        telemetryM.addData("x:", x);
+        telemetryM.addData("y:", y);
+        telemetryM.addData("rotation:", rotation);
 
         telemetryM.update(telemetry);
     }

@@ -12,17 +12,17 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
 @Configurable
 @TeleOp(name = "PID testing for motors B", group = "testing")
-public class motorPIDB extends OpMode{ //motor 1 from pod A is the only one that has to be set to negative
+public class motorPIDB extends OpMode{ //motor max speed is 2400
     private DcMotorEx m1;
     private DcMotorEx m2;
-    public static double m1P = 15.0;
-    public static double m1I = 0.0;
+    public static double m1P = 16.0;
+    public static double m1I = 1.0;
     public static double m1D = 0.0;
-    public static double m1F = 13.0;
+    public static double m1F = 13.5;
     public static double m2P = 15.0;
-    public static double m2I = 0.0;
-    public static double m2D = 1.0;
-    public static double m2F = 13.0;
+    public static double m2I = 1.0;
+    public static double m2D = 0.0;
+    public static double m2F = 13.5;
     public static double targetV1 = 0.0;
     public static double targetV2 = 0.0;
     public static int negative = 1;
